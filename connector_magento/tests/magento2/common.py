@@ -11,10 +11,13 @@ Magento2 version of the helpers from tests/common.py
 """
 
 from os.path import dirname, join
+from unittest import mock
 from vcr import VCR
 
 from odoo.tools import mute_logger
-from ..common import MagentoTestCase
+from odoo.addons.connector_magento.components import backend_adapter
+from odoo.addons.connector_magento.models import magento_backend
+from ..common import MagentoTestCase, StubMagentoAPI
 
 
 recorder = VCR(
@@ -45,5 +48,8 @@ class Magento2SyncTestCase(Magento2TestCase):
                 'odoo.addons.mail.models.mail_mail',
                 'odoo.models.unlink',
                 'odoo.tests'):
-            with recorder.use_cassette('metadata'):
-                cls.backend.synchronize_metadata()
+            with mock.patch.object(backend_adapter, 'MagentoAPI',
+                                   StubMagentoAPI):
+                with mock.patch.object(magento_backend.common, 'MagentoAPI',
+                                       StubMagentoAPI):
+                    cls.backend.synchronize_metadata()

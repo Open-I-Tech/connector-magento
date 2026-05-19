@@ -29,6 +29,8 @@ except ImportError:
 from odoo.tools import mute_logger
 
 from vcr import VCR
+from odoo.addons.connector_magento.components import backend_adapter
+from odoo.addons.connector_magento.models import magento_backend
 
 logging.getLogger("vcr").setLevel(logging.WARNING)
 
@@ -38,6 +40,146 @@ recorder = VCR(
     path_transformer=VCR.ensure_suffix('.yaml'),
     filter_headers=['Authorization'],
 )
+
+
+class StubMagentoAPI(object):
+    """Small Magento API test double for metadata synchronization."""
+
+    _magento1_records = {
+        'ol_websites': {
+            '0': {
+                'website_id': '0',
+                'code': 'admin',
+                'name': 'Admin',
+                'sort_order': '0',
+                'default_group_id': '0',
+            },
+            '1': {
+                'website_id': '1',
+                'code': 'base',
+                'name': 'Main Website',
+                'sort_order': '0',
+                'default_group_id': '1',
+            },
+        },
+        'ol_groups': {
+            '0': {
+                'group_id': '0',
+                'website_id': '0',
+                'name': 'Default',
+                'root_category_id': '0',
+                'default_store_id': '0',
+            },
+            '1': {
+                'group_id': '1',
+                'website_id': '1',
+                'name': 'Madison Island',
+                'root_category_id': '2',
+                'default_store_id': '1',
+            },
+        },
+        'ol_storeviews': {
+            '0': {
+                'store_id': '0',
+                'code': 'admin',
+                'website_id': '0',
+                'group_id': '0',
+                'name': 'Admin',
+                'sort_order': '0',
+                'is_active': '1',
+            },
+            '1': {
+                'store_id': '1',
+                'code': 'default',
+                'website_id': '1',
+                'group_id': '1',
+                'name': 'English',
+                'sort_order': '0',
+                'is_active': '1',
+            },
+            '2': {
+                'store_id': '2',
+                'code': 'french',
+                'website_id': '1',
+                'group_id': '1',
+                'name': 'French',
+                'sort_order': '0',
+                'is_active': '1',
+            },
+            '3': {
+                'store_id': '3',
+                'code': 'german',
+                'website_id': '1',
+                'group_id': '1',
+                'name': 'German',
+                'sort_order': '0',
+                'is_active': '1',
+            },
+        },
+    }
+
+    _magento2_websites = [
+        {'id': 1, 'code': 'base', 'name': 'Main Website',
+         'default_group_id': 1},
+        {'id': 0, 'code': 'admin', 'name': 'Admin',
+         'default_group_id': 0},
+    ]
+    _magento2_groups = [
+        {'id': 0, 'website_id': 0, 'root_category_id': 0,
+         'default_store_id': 0, 'name': 'Default', 'code': 'default'},
+        {'id': 1, 'website_id': 1, 'root_category_id': 2,
+         'default_store_id': 1, 'name': 'Main Website Store',
+         'code': 'main_website_store'},
+    ]
+    _magento2_storeviews = [
+        {'id': 1, 'code': 'default', 'name': 'Default Store View',
+         'website_id': 1, 'store_group_id': 1, 'is_active': 1},
+        {'id': 0, 'code': 'admin', 'name': 'Admin', 'website_id': 0,
+         'store_group_id': 0, 'is_active': 1},
+    ]
+    _magento2_storeconfigs = [
+        {'id': 1, 'code': 'default', 'website_id': 1, 'locale': 'en_US',
+         'base_media_url': 'http://magento/media/'},
+    ]
+
+    def __init__(self, location):
+        self.location = location
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return False
+
+    def call(self, method, arguments=None, http_method=None, storeview=None):
+        if self.location.version == '1.7':
+            return self._call_magento1(method, arguments)
+        return self._call_magento2(method, arguments)
+
+    def _call_magento1(self, method, arguments=None):
+        model, operation = method.rsplit('.', 1)
+        records = self._magento1_records[model]
+        if operation == 'search':
+            return list(records)
+        if operation == 'info':
+            return records[str(arguments[0])]
+        raise NotImplementedError(method)
+
+    def _filter_fields(self, records, arguments):
+        if arguments and arguments.get('fields') == 'id':
+            return [{'id': record['id']} for record in records]
+        return records
+
+    def _call_magento2(self, method, arguments=None):
+        if method == 'store/websites':
+            return self._filter_fields(self._magento2_websites, arguments)
+        if method == 'store/storeGroups':
+            return self._filter_fields(self._magento2_groups, arguments)
+        if method == 'store/storeViews':
+            return self._magento2_storeviews
+        if method == 'store/storeConfigs':
+            return self._filter_fields(self._magento2_storeconfigs, arguments)
+        raise NotImplementedError(method)
 
 
 class MockResponseImage(object):
@@ -292,5 +434,8 @@ class MagentoSyncTestCase(MagentoTestCase):
                 'odoo.addons.mail.models.mail_mail',
                 'odoo.models.unlink',
                 'odoo.tests'):
-            with recorder.use_cassette('metadata'):
-                cls.backend.synchronize_metadata()
+            with mock.patch.object(backend_adapter, 'MagentoAPI',
+                                   StubMagentoAPI):
+                with mock.patch.object(magento_backend.common, 'MagentoAPI',
+                                       StubMagentoAPI):
+                    cls.backend.synchronize_metadata()

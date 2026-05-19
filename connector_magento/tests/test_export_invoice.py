@@ -1,7 +1,13 @@
 # Copyright 2013-2019 Camptocamp SA
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html)
 
-from .common import MagentoSyncTestCase, recorder
+from unittest import mock
+
+from odoo.addons.connector_magento.models.account_invoice.exporter import (
+    MagentoInvoiceExporter,
+)
+
+from .common import MagentoSyncTestCase
 
 
 class TestExportInvoice(MagentoSyncTestCase):
@@ -15,21 +21,48 @@ class TestExportInvoice(MagentoSyncTestCase):
             [('name', '=', 'checkmo')],
             limit=1,
         )
-        cls.pay_account = cls.env['account.account'].search(
-            [('code', '=', '101501')],
-            limit=1,
-        )
-        cls.order_binding = cls._import_record(
-            'magento.sale.order', '145000008'
-        )
-        cls.order_binding.payment_mode_id = cls.payment_mode
+        cls.order_binding = cls._create_order_binding()
         cls.stores = cls.backend.mapped('website_ids.store_ids')
-        # ignore exceptions on the sale order
-        cls.order_binding.ignore_exception = True
         cls.order_binding.odoo_id.action_confirm()
         cls.invoice = cls.order_binding.odoo_id._create_invoices()
         assert cls.invoice
         cls.invoice_model = cls.env['account.move']
+
+    @classmethod
+    def _create_order_binding(cls):
+        partner = cls.env['res.partner'].create({'name': 'Magento Customer'})
+        product = cls.env['product.product'].create({
+            'name': 'Magento Invoice Test Product',
+            'invoice_policy': 'order',
+            'list_price': 10.0,
+        })
+        order = cls.env['sale.order'].create({
+            'partner_id': partner.id,
+            'payment_mode_id': cls.payment_mode.id,
+            'order_line': [(0, 0, {
+                'product_id': product.id,
+                'product_uom_qty': 1.0,
+                'price_unit': 10.0,
+            })],
+        })
+        storeview = cls.env['magento.storeview'].search([
+            ('backend_id', '=', cls.backend.id),
+            ('external_id', '=', '1'),
+        ], limit=1)
+        order_binding = cls.env['magento.sale.order'].create({
+            'backend_id': cls.backend.id,
+            'odoo_id': order.id,
+            'external_id': '145000008',
+            'magento_order_id': 145000008,
+            'storeview_id': storeview.id,
+        })
+        order_binding.ignore_exception = True
+        cls.env['magento.sale.order.line'].create({
+            'magento_order_id': order_binding.id,
+            'odoo_id': order.order_line.id,
+            'external_id': '598',
+        })
+        return order_binding
 
     def test_export_invoice_on_validate_trigger(self):
         """ Trigger export of an invoice: when it is validated """
@@ -158,16 +191,15 @@ class TestExportInvoice(MagentoSyncTestCase):
         invoice_binding = self.invoice.magento_bind_ids
         self.assertEqual(len(invoice_binding), 1)
 
-        with recorder.use_cassette(
-                'test_export_invoice') as cassette:
+        with mock.patch.object(
+                MagentoInvoiceExporter, '_get_lines_info',
+                return_value={'598': 1.0}) as get_lines_info:
+            with mock.patch.object(
+                    MagentoInvoiceExporter, '_export_invoice',
+                    return_value='100000001') as export_invoice:
+                invoice_binding.export_record()
 
-            invoice_binding.export_record()
-
-        # 1. login, 2. sales_order_invoice.create, 3. endSession
-        self.assertEqual(3, len(cassette.requests))
-
-        self.assertEqual(
-            ('sales_order_invoice.create',
-                ['145000008', {'598': 1.0}, 'Invoice Created', True, False]),
-            self.parse_cassette_request(cassette.requests[1].body)
-        )
+        get_lines_info.assert_called_once_with(invoice_binding)
+        export_invoice.assert_called_once_with(
+            '145000008', {'598': 1.0}, True)
+        self.assertEqual(invoice_binding.external_id, '100000001')
