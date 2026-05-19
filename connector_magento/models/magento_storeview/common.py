@@ -71,7 +71,7 @@ class MagentoStoreview(models.Model):
             if user != self.env.user:
                 sale_binding_model = sale_binding_model.sudo(user)
 
-            backend = storeview.sudo(user).backend_id
+            backend = storeview.with_user(user).backend_id
             from_date = storeview.import_orders_from_date
 
             # Apply the global order import delay
