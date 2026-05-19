@@ -17,6 +17,7 @@ _logger = logging.getLogger(__name__)
 try:
     import magento as magentolib
 except ImportError:
+    magentolib = None
     _logger.debug("Cannot import 'magento'")
 
 
@@ -73,7 +74,7 @@ class Magento2Client(object):
             http_method = 'get'
         function = getattr(requests, http_method)
         headers = {'Authorization': 'Bearer %s' % self._token}
-        kwargs = {'headers': headers}
+        kwargs = {'headers': headers, 'verify': self._verify_ssl}
         if http_method == 'get':
             kwargs['params'] = arguments
         elif arguments is not None:
@@ -97,6 +98,13 @@ class MagentoAPI(object):
     def api(self):
         if self._api is None:
             if self._location.version == '1.7':
+                if magentolib is None:
+                    raise ImportError(
+                        "The Python package 'magento' is required for "
+                        "Magento 1.x backends. Configure this backend as "
+                        "Magento 2.0+ with a REST access token, or install "
+                        "the legacy 'magento' package."
+                    )
                 api = magentolib.API(
                     self._location.location,
                     self._location.username,
@@ -116,7 +124,7 @@ class MagentoAPI(object):
 
     def api_call(self, method, arguments, http_method=None, storeview=None):
         """ Adjust available arguments per API """
-        if isinstance(self.api, magentolib.API):
+        if magentolib is not None and isinstance(self.api, magentolib.API):
             return self.api.call(method, arguments)
         return self.api.call(method, arguments, http_method=http_method,
                              storeview=storeview)
