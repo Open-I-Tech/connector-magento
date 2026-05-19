@@ -46,13 +46,13 @@ class MagentoStore(models.Model):
              "an email notification on Magento side?",
     )
     create_invoice_on = fields.Selection(
-        selection=[('open', 'Validate'),
+        selection=[('open', 'Posted'),
                    ('paid', 'Paid')],
         string='Create invoice on action',
         default='paid',
         required=True,
         help="Should the invoice be created in Magento "
-             "when it is validated or when it is paid in Odoo?\n"
+             "when it is posted or when it is paid in Odoo?\n"
              "This only takes effect if the sales order's related "
              "payment method is not giving an option for this by "
              "itself. (See Payment Methods)",

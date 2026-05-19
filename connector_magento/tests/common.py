@@ -13,14 +13,19 @@ import xmlrpc.client
 import logging
 import urllib
 
-import mock
 import odoo
 
 from os.path import dirname, join
 from contextlib import contextmanager
+from unittest import mock
 from psycopg2.extensions import AsIs
 from odoo import models
-from odoo.addons.component.tests.common import SavepointComponentCase
+try:
+    from odoo.addons.component.tests.common import SavepointComponentCase
+except ImportError:
+    from odoo.addons.component.tests.common import (
+        TransactionComponentCase as SavepointComponentCase,
+    )
 from odoo.tools import mute_logger
 
 from vcr import VCR

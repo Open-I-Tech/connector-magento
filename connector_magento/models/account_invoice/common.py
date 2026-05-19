@@ -4,9 +4,9 @@
 
 import logging
 import xmlrpc.client
-from odoo import api, models, fields
+from odoo import models, fields
 from odoo.addons.component.core import Component
-from odoo.addons.queue_job.job import job, related_action
+from odoo.addons.connector_magento.compat import job, related_action
 from odoo.addons.connector.exception import IDMissingInBackend
 
 _logger = logging.getLogger(__name__)
@@ -16,11 +16,13 @@ class MagentoAccountInvoice(models.Model):
     """ Binding Model for the Magento Invoice """
     _name = 'magento.account.invoice'
     _inherit = 'magento.binding'
-    _inherits = {'account.invoice': 'odoo_id'}
+    _inherits = {'account.move': 'odoo_id'}
     _description = 'Magento Invoice'
 
-    odoo_id = fields.Many2one(comodel_name='account.invoice',
+    odoo_id = fields.Many2one(comodel_name='account.move',
                               string='Invoice',
+                              domain=[('move_type', 'in',
+                                       ('out_invoice', 'out_refund'))],
                               required=True,
                               ondelete='cascade')
     magento_order_id = fields.Many2one(comodel_name='magento.sale.order',
@@ -34,7 +36,6 @@ class MagentoAccountInvoice(models.Model):
 
     @job(default_channel='root.magento')
     @related_action(action='related_action_unwrap_binding')
-    @api.multi
     def export_record(self):
         """ Export a validated or paid invoice. """
         self.ensure_one()
@@ -43,11 +44,11 @@ class MagentoAccountInvoice(models.Model):
             return exporter.run(self)
 
 
-class AccountInvoice(models.Model):
+class AccountMove(models.Model):
     """ Adds the ``one2many`` relation to the Magento bindings
     (``magento_bind_ids``)
     """
-    _inherit = 'account.invoice'
+    _inherit = 'account.move'
 
     magento_bind_ids = fields.One2many(
         comodel_name='magento.account.invoice',
@@ -130,7 +131,7 @@ class MagentoBindingInvoiceListener(Component):
 class MagentoInvoiceListener(Component):
     _name = 'magento.account.invoice.listener'
     _inherit = 'base.event.listener'
-    _apply_on = ['account.invoice']
+    _apply_on = ['account.move']
 
     def on_invoice_paid(self, record):
         self.invoice_create_bindings(record)
@@ -138,34 +139,45 @@ class MagentoInvoiceListener(Component):
     def on_invoice_validated(self, record):
         self.invoice_create_bindings(record)
 
+    def _invoice_matches_export_trigger(self, invoice, trigger):
+        if trigger == 'open':
+            return invoice.state == 'posted'
+        if trigger == 'paid':
+            return invoice.payment_state == 'paid'
+        return False
+
     def invoice_create_bindings(self, invoice):
         """
         Create a ``magento.account.invoice`` record. This record will then
         be exported to Magento.
         """
-        # find the magento store to retrieve the backend
-        # we use the shop as many sale orders can be related to an invoice
-        sales = invoice.mapped('invoice_line_ids.sale_line_ids.order_id')
-        for sale in sales:
-            for magento_sale in sale.magento_bind_ids:
-                binding_exists = False
-                for mag_inv in invoice.magento_bind_ids:
-                    if mag_inv.backend_id.id == magento_sale.backend_id.id:
-                        binding_exists = True
-                        break
-                if binding_exists:
-                    continue
-                # Check if invoice state matches configuration setting
-                # for when to export an invoice
-                magento_store = magento_sale.store_id
-                payment_mode = sale.payment_mode_id
-                if payment_mode and payment_mode.create_invoice_on:
-                    create_invoice = payment_mode.create_invoice_on
-                else:
-                    create_invoice = magento_store.create_invoice_on
+        for move in invoice.filtered(lambda inv: inv.move_type in (
+                'out_invoice', 'out_refund')):
+            # find the magento store to retrieve the backend
+            # we use the shop as many sale orders can be related to an invoice
+            sales = move.mapped('invoice_line_ids.sale_line_ids.order_id')
+            for sale in sales:
+                for magento_sale in sale.magento_bind_ids:
+                    binding_exists = False
+                    for mag_inv in move.magento_bind_ids:
+                        if mag_inv.backend_id.id == magento_sale.backend_id.id:
+                            binding_exists = True
+                            break
+                    if binding_exists:
+                        continue
+                    # Check if invoice state matches configuration setting
+                    # for when to export an invoice. Legacy values are kept:
+                    # "open" means posted, "paid" means paid payment state.
+                    magento_store = magento_sale.store_id
+                    payment_mode = sale.payment_mode_id
+                    if payment_mode and payment_mode.create_invoice_on:
+                        create_invoice = payment_mode.create_invoice_on
+                    else:
+                        create_invoice = magento_store.create_invoice_on
 
-                if create_invoice == invoice.state:
-                    self.env['magento.account.invoice'].create({
-                        'backend_id': magento_sale.backend_id.id,
-                        'odoo_id': invoice.id,
-                        'magento_order_id': magento_sale.id})
+                    if self._invoice_matches_export_trigger(
+                            move, create_invoice):
+                        self.env['magento.account.invoice'].create({
+                            'backend_id': magento_sale.backend_id.id,
+                            'odoo_id': move.id,
+                            'magento_order_id': magento_sale.id})

@@ -5,7 +5,7 @@
 import logging
 import xmlrpc.client
 from odoo import models, fields, api
-from odoo.addons.queue_job.job import job
+from odoo.addons.connector_magento.compat import job
 from odoo.addons.component.core import Component
 
 from odoo.addons.connector.exception import IDMissingInBackend

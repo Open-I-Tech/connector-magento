@@ -9,7 +9,7 @@ import odoo.addons.decimal_precision as dp
 
 from odoo import models, fields, api, _
 from odoo.addons.connector.exception import IDMissingInBackend
-from odoo.addons.queue_job.job import job
+from odoo.addons.connector_magento.compat import job
 from odoo.addons.component.core import Component
 
 from ...components.backend_adapter import MAGENTO_DATETIME_FORMAT
@@ -53,7 +53,6 @@ class MagentoSaleOrder(models.Model):
                                readonly=True)
 
     @job(default_channel='root.magento')
-    @api.multi
     def export_state_change(self, allowed_states=None,
                             comment=None, notify=None):
         """ Change state of a sales order on Magento """
@@ -114,8 +113,6 @@ class SaleOrder(models.Model):
                 binding.with_delay(
                     description=job_descr
                 ).export_state_change(allowed_states=['cancel'])
-
-    @api.multi
     def write(self, vals):
         if vals.get('state') == 'cancel':
             self._magento_cancel()
@@ -137,8 +134,6 @@ class SaleOrder(models.Model):
             binding.with_delay(
                 description=job_descr
             ).export_state_change()
-
-    @api.multi
     def copy(self, default=None):
         self_copy = self.with_context(__copy_from_quotation=True)
         new = super(SaleOrder, self_copy).copy(default=default)
@@ -217,8 +212,6 @@ class SaleOrderLine(models.Model):
             if bindings:
                 bindings.write({'odoo_id': new_line.id})
         return new_line
-
-    @api.multi
     def copy_data(self, default=None):
         data = super(SaleOrderLine, self).copy_data(default=default)[0]
         if self.env.context.get('__copy_from_quotation'):

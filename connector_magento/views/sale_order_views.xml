@@ -36,16 +36,16 @@
     </record>
 
     <record id="view_magento_sale_order_tree" model="ir.ui.view">
-        <field name="name">magento.sale.order.tree</field>
+        <field name="name">magento.sale.order.list</field>
         <field name="model">magento.sale.order</field>
         <field name="arch" type="xml">
-            <tree string="Magento Sales Orders"
+            <list string="Magento Sales Orders"
                     create="false" delete="false">
                 <field name="backend_id"/>
                 <field name="store_id"/>
                 <field name="storeview_id"/>
                 <field name="external_id"/>
-            </tree>
+            </list>
         </field>
     </record>
 

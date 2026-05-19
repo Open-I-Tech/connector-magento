@@ -2,9 +2,9 @@
 <odoo>
 
     <record id="view_invoice_magento_form" model="ir.ui.view">
-        <field name="name">account.invoice.magento.form</field>
-        <field name="model">account.invoice</field>
-        <field name="inherit_id" ref="connector_ecommerce.view_invoice_connector_form"/>
+        <field name="name">account.move.magento.form</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="connector_ecommerce.view_move_form"/>
         <field name="arch" type="xml">
             <page name="connector" position="attributes">
                 <attribute name="invisible">0</attribute>
@@ -25,21 +25,28 @@
                     create="false" delete="false">
                 <group>
                     <field name="backend_id"/>
-                    <field name="external_id"/>
+                    <field name="external_id" string="Magento Invoice Number"/>
+                    <field name="odoo_id"/>
+                    <field name="name" string="Odoo Invoice Number"/>
+                    <field name="state"/>
+                    <field name="payment_state"/>
                 </group>
             </form>
         </field>
     </record>
 
     <record id="view_magento_account_invoice_tree" model="ir.ui.view">
-        <field name="name">magento.account.invoice.tree</field>
+        <field name="name">magento.account.invoice.list</field>
         <field name="model">magento.account.invoice</field>
         <field name="arch" type="xml">
-            <tree string="Magento Invoice"
+            <list string="Magento Invoice"
                     create="false" delete="false">
                 <field name="backend_id"/>
-                <field name="external_id"/>
-            </tree>
+                <field name="external_id" string="Magento Invoice Number"/>
+                <field name="name" string="Odoo Invoice Number"/>
+                <field name="state"/>
+                <field name="payment_state"/>
+            </list>
         </field>
     </record>
 

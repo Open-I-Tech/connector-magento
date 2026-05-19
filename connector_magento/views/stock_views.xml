@@ -33,15 +33,15 @@
     </record>
 
     <record id="view_magento_stock_picking_out_tree" model="ir.ui.view">
-        <field name="name">magento.stock.picking.tree</field>
+        <field name="name">magento.stock.picking.list</field>
         <field name="model">magento.stock.picking</field>
         <field name="arch" type="xml">
-            <tree string="Magento Delivery Order"
+            <list string="Magento Delivery Order"
                     create="false" delete="false">
                 <field name="backend_id"/>
                 <field name="external_id"/>
                 <field name="picking_method"/>
-            </tree>
+            </list>
         </field>
     </record>
 

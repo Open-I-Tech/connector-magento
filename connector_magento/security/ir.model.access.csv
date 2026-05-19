@@ -37,3 +37,4 @@
 "access_stock_picking_out_manager","magento_stock.picking manager","model_magento_stock_picking","stock.group_stock_manager",1,1,1,1
 "access_magento_sale_order_stock_user","magento_sale_order warehouse user","model_magento_sale_order","stock.group_stock_user",1,1,0,0
 "access_magento_sale_order_line_stock_user","magento_sale_order_line warehouse user","model_magento_sale_order_line","stock.group_stock_user",1,1,0,0
+"access_magento_binding_backend_read","magento_binding_backend_read user","model_magento_binding_backend_read","base.group_user",1,1,1,1

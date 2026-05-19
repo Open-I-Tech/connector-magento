@@ -108,8 +108,6 @@ class MagentoBindingBackendRead(models.TransientModel):
         'Magento Id',
         required=True
     )
-
-    @api.multi
     def action_get_info(self):
         self.ensure_one()
 
@@ -127,7 +125,6 @@ class MagentoBindingBackendRead(models.TransientModel):
             'type': 'ir.actions.act_window',
             'res_model': 'magento.binding.backend.read',
             'view_mode': 'form',
-            'view_type': 'form',
             'res_id': self.id,
             'views': [(False, 'form')],
             'target': 'new',

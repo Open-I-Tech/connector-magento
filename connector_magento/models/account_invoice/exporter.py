@@ -40,7 +40,9 @@ class MagentoInvoiceExporter(Component):
         # get product and quantities to invoice
         # if no magento id found, do not export it
         order = invoice.magento_order_id
-        for line in invoice.invoice_line_ids:
+        invoice_lines = invoice.invoice_line_ids.filtered(
+            lambda line: not line.display_type and line.product_id)
+        for line in invoice_lines:
             product = line.product_id
             # find the order line with the same product
             # and get the magento item_id (id of the line)
@@ -105,4 +107,5 @@ class MagentoInvoiceExporter(Component):
             return
         if len(invoices) > 1:
             return
-        return invoices[0]['increment_id']
+        invoice = invoices[0]
+        return invoice.get('increment_id') or invoice.get('entity_id')

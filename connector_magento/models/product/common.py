@@ -11,7 +11,7 @@ from odoo import models, fields, api
 from odoo.addons.connector.exception import IDMissingInBackend
 from odoo.addons.component.core import Component
 from odoo.addons.component_event import skip_if
-from odoo.addons.queue_job.job import job, related_action
+from odoo.addons.connector_magento.compat import job, related_action
 from odoo.exceptions import UserError
 from odoo.tools.translate import _
 from ...components.backend_adapter import MAGENTO_DATETIME_FORMAT
@@ -94,15 +94,12 @@ class MagentoProductProduct(models.Model):
 
     @job(default_channel='root.magento')
     @related_action(action='related_action_unwrap_binding')
-    @api.multi
     def export_inventory(self, fields=None):
         """ Export the inventory configuration and quantity of a product. """
         self.ensure_one()
         with self.backend_id.work_on(self._name) as work:
             exporter = work.component(usage='product.inventory.exporter')
             return exporter.run(self, fields)
-
-    @api.multi
     def recompute_magento_qty(self):
         """ Check if the quantity in the stock location configured
         on the backend has changed since the last export.
@@ -123,8 +120,6 @@ class MagentoProductProduct(models.Model):
             self._recompute_magento_qty_backend(backend,
                                                 self.browse(product_ids))
         return True
-
-    @api.multi
     def _recompute_magento_qty_backend(self, backend, products,
                                        read_fields=None):
         """ Recompute the products quantity for one backend.
@@ -159,8 +154,6 @@ class MagentoProductProduct(models.Model):
                                             stock_field)
                 if new_qty != product['magento_qty']:
                     self.browse(product['id']).magento_qty = new_qty
-
-    @api.multi
     def _magento_qty(self, product, backend, location, stock_field):
         """ Return the current quantity for one product.
 
