@@ -23,6 +23,25 @@ class MagentoPickingExporter(Component):
         return (magento_sale_id, lines_info,
                 _("Shipping Created"), mail_notification, True)
 
+    def _get_stock_moves(self, binding):
+        if 'move_ids' in binding._fields:
+            return binding.move_ids
+        return binding.move_lines
+
+    def _get_move_qty(self, move):
+        if 'quantity' in move._fields:
+            quantity = move.quantity
+        elif 'quantity_done' in move._fields:
+            quantity = move.quantity_done
+        else:
+            quantity = move.product_uom_qty
+        return quantity or move.product_uom_qty
+
+    def _get_sale(self, binding):
+        if 'sale_id' in binding._fields and binding.sale_id:
+            return binding.sale_id
+        return self._get_stock_moves(binding).sale_line_id.order_id[:1]
+
     def _get_lines_info(self, binding):
         """
         Get the line to export to Magento. In case some lines doesn't have a
@@ -34,8 +53,8 @@ class MagentoPickingExporter(Component):
         """
         item_qty = {}
         # get product and quantities to ship from the picking
-        for line in binding.move_lines:
-            sale_line = line.sale_line_id
+        for move in self._get_stock_moves(binding):
+            sale_line = move.sale_line_id
             if not sale_line.magento_bind_ids:
                 continue
             magento_sale_line = next(
@@ -47,7 +66,7 @@ class MagentoPickingExporter(Component):
                 continue
             item_id = magento_sale_line.external_id
             item_qty.setdefault(item_id, 0)
-            item_qty[item_id] += line.product_qty
+            item_qty[item_id] += self._get_move_qty(move)
         return item_qty
 
     def _get_picking_mail_option(self, binding):
@@ -57,8 +76,11 @@ class MagentoPickingExporter(Component):
         :returns: value of send_picking_done_mail chosen on magento shop
         :rtype: boolean
         """
-        magento_shop = binding.sale_id.magento_bind_ids[0].store_id
-        return magento_shop.send_picking_done_mail
+        sale = self._get_sale(binding)
+        if not sale or not sale.magento_bind_ids:
+            return False
+        magento_shop = sale.magento_bind_ids[0].store_id
+        return bool(magento_shop.send_picking_done_mail)
 
     def run(self, binding):
         """
@@ -105,9 +127,10 @@ class MagentoPickingExporter(Component):
                     'qty': val,
                 } for key, val in get_lines_info().items()]
             }
+            sale = self._get_sale(binding)
             external_id = self.backend_adapter._call(
                 'order/%s/ship' %
-                binding.sale_id.magento_bind_ids[0].external_id,
+                sale.magento_bind_ids[0].external_id,
                 arguments, http_method='post')
 
         self.binder.bind(external_id, binding)

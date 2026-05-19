@@ -138,11 +138,20 @@ class SaleOrderImportMapper(Component):
               ('grand_total', 'total_amount'),
               ('tax_amount', 'total_amount_tax'),
               (normalize_datetime('created_at'), 'date_order'),
-              ('store_id', 'storeview_id'),
               ]
 
     children = [('items', 'magento_order_line_ids', 'magento.sale.order.line'),
                 ]
+
+    @mapping
+    def storeview_id(self, record):
+        # Magento sends the external store view id in store_id.
+        storeview = self.binder_for('magento.storeview').to_internal(
+            record['store_id']
+        )
+        if storeview:
+            return {'storeview_id': storeview.id}
+        return {}
 
     def _add_shipping_line(self, map_record, values):
         record = map_record.source
@@ -729,7 +738,6 @@ class SaleOrderLineImportMapper(Component):
     _apply_on = 'magento.sale.order.line'
 
     direct = [('qty_ordered', 'product_uom_qty'),
-              ('qty_ordered', 'product_qty'),
               ('name', 'name'),
               ('item_id', 'external_id'),
               ]

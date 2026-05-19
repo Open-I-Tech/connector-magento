@@ -52,6 +52,7 @@ class DeliveryCarrier(models.Model):
     @api.depends('magento_code')
     def _compute_carrier_code(self):
         for carrier in self:
+            carrier.magento_carrier_code = False
             if carrier.magento_code:
                 carrier.magento_carrier_code = carrier.magento_code.split(
                     '_')[0]

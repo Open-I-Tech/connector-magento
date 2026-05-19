@@ -4,7 +4,7 @@
 
 import logging
 import xmlrpc.client
-from odoo import api, models, fields
+from odoo import models, fields
 from odoo.addons.connector_magento.compat import job, related_action
 from odoo.addons.connector.exception import IDMissingInBackend
 from odoo.addons.component.core import Component
@@ -153,6 +153,16 @@ class MagentoStockPickingListener(Component):
     def on_picking_dropship_done(self, record, picking_method):
         return self.on_picking_out_done(record, picking_method)
 
+    def _get_sales_from_picking(self, record):
+        if 'sale_id' in record._fields and record.sale_id:
+            return record.sale_id
+        moves = (
+            record.move_ids
+            if 'move_ids' in record._fields
+            else record.move_lines
+        )
+        return moves.sale_line_id.order_id
+
     def on_picking_out_done(self, record, picking_method):
         """
         Create a ``magento.stock.picking`` record. This record will then
@@ -161,10 +171,15 @@ class MagentoStockPickingListener(Component):
         :param picking_method: picking_method, can be 'complete' or 'partial'
         :type picking_method: str
         """
-        sale = record.sale_id
-        if not sale:
+        sales = self._get_sales_from_picking(record)
+        if not sales:
             return
-        for magento_sale in sale.magento_bind_ids:
+        for magento_sale in sales.magento_bind_ids:
+            existing = record.magento_bind_ids.filtered(
+                lambda binding: binding.backend_id == magento_sale.backend_id
+            )
+            if existing:
+                continue
             self.env['magento.stock.picking'].create({
                 'backend_id': magento_sale.backend_id.id,
                 'odoo_id': record.id,
