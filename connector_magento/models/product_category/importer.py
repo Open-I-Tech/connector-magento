@@ -26,12 +26,11 @@ class ProductCategoryBatchImporter(Component):
 
     def run(self, filters=None):
         """ Run the synchronization """
-        if self.collection.version == '2.0':
-            # TODO. See 8.0 version
-            raise NotImplementedError
+        if filters is None:
+            filters = {}
         from_date = filters.pop('from_date', None)
         to_date = filters.pop('to_date', None)
-        if from_date or to_date:
+        if self.collection.version != '2.0' and (from_date or to_date):
             updated_ids = self.backend_adapter.search(filters,
                                                       from_date=from_date,
                                                       to_date=to_date)
@@ -91,7 +90,7 @@ class ProductCategoryImportMapper(Component):
 
     @mapping
     def name(self, record):
-        if record['level'] == '0':  # top level category; has no name
+        if str(record.get('level')) == '0':  # top level category; has no name
             return {'name': self.backend_record.name}
         if record['name']:  # may be empty in storeviews
             return {'name': record['name']}

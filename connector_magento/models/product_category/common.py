@@ -101,20 +101,28 @@ class ProductCategoryAdapter(Component):
         if self.collection.version == '1.7':
             return self._call('%s.info' % self._magento_model,
                               [int(external_id), storeview_id, attributes])
-        return super(ProductCategoryAdapter, self).read(
+        res = super(ProductCategoryAdapter, self).read(
             external_id, attributes, storeview=storeview_id)
+        if res:
+            for attr in res.get('custom_attributes', []):
+                res[attr['attribute_code']] = attr['value']
+        return res
 
     def tree(self, parent_id=None, storeview_id=None):
         """ Returns a tree of product categories
 
         :rtype: dict
         """
-        def filter_ids(tree):
+        def filter_ids(tree, id_key='category_id', children_key='children'):
             children = {}
-            if tree['children']:
-                for node in tree['children']:
-                    children.update(filter_ids(node))
-            category_id = {tree['category_id']: children}
+            if tree.get(children_key):
+                for node in tree[children_key]:
+                    children.update(filter_ids(
+                        node,
+                        id_key=id_key,
+                        children_key=children_key,
+                    ))
+            category_id = {tree[id_key]: children}
             return category_id
 
         if self.collection.version == '1.7':
@@ -123,7 +131,13 @@ class ProductCategoryAdapter(Component):
                 tree = self._call('%s.tree' % self._magento_model,
                                   [parent_id, storeview_id])
             return filter_ids(tree)
-        raise NotImplementedError  # TODO
+
+        params = None
+        resource = self._magento2_model
+        if parent_id:
+            params = {'rootCategoryId': parent_id}
+        tree = self._call(resource, params, storeview=storeview_id)
+        return filter_ids(tree, id_key='id', children_key='children_data')
 
     def move(self, categ_id, parent_id, after_categ_id=None):
         if self.collection.version == '1.7':
