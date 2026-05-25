@@ -41,6 +41,10 @@ class TestExportPicking(Magento2SyncTestCase):
         magento_shop = cls.picking.sale_id.magento_bind_ids[0].store_id
         magento_shop.send_picking_done_mail = True
 
+    def _set_move_done_quantity(self, move, quantity):
+        move.move_line_ids.quantity = quantity
+        move.move_line_ids.picked = bool(quantity)
+
     def test_export_complete_picking_trigger(self):
         """ Trigger export of a complete picking """
         self.picking.action_assign()
@@ -108,10 +112,10 @@ class TestExportPicking(Magento2SyncTestCase):
         # Prepare a partial picking
         # The sale order contains 2 lines with 1 product each
         self.picking.action_assign()
-        self.picking.move_lines[0].quantity_done = 1
-        self.picking.move_lines[1].quantity_done = 0
+        self._set_move_done_quantity(self.picking.move_ids[0], 1)
+        self._set_move_done_quantity(self.picking.move_ids[1], 0)
         # Remove reservation for line index 1
-        self.picking.move_lines[1].move_line_ids.unlink()
+        self.picking.move_ids[1].move_line_ids.unlink()
 
         with self.mock_with_delay() as (delayable_cls, delayable):
             # Deliver the entire picking, a 'magento.stock.picking'
@@ -148,8 +152,8 @@ class TestExportPicking(Magento2SyncTestCase):
         # Prepare a partial picking
         # The sale order contains 2 lines with 1 product each
         self.picking.action_assign()
-        self.picking.move_lines[0].quantity_done = 1
-        self.picking.move_lines[1].quantity_done = 0
+        self._set_move_done_quantity(self.picking.move_ids[0], 1)
+        self._set_move_done_quantity(self.picking.move_ids[1], 0)
 
         with self.mock_with_delay():
             # Deliver the entire picking, a 'magento.stock.picking'
