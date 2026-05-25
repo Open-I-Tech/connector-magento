@@ -80,13 +80,13 @@ class SaleOrder(models.Model):
     )
 
     @api.depends('magento_bind_ids', 'magento_bind_ids.magento_parent_id')
-    def get_parent_id(self):
+    def _compute_parent_id(self):
         """ Return the parent order.
 
         For Magento sales orders, the magento parent order is stored
         in the binding, get it from there.
         """
-        super(SaleOrder, self).get_parent_id()
+        super()._compute_parent_id()
         for order in self:
             if not order.magento_bind_ids:
                 continue
