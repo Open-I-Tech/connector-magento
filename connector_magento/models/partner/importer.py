@@ -116,7 +116,7 @@ class PartnerImportMapper(Component):
     @only_create
     @mapping
     def customer(self, record):
-        return {'customer': True}
+        return {'customer_rank': 1}
 
     @mapping
     def type(self, record):
@@ -129,7 +129,7 @@ class PartnerImportMapper(Component):
         with the same email """
         partner = self.env['res.partner'].search(
             [('email', '=', record['email']),
-             ('customer', '=', True),
+             ('customer_rank', '>', 0),
              '|',
              ('is_company', '=', True),
              ('parent_id', '=', False)],
