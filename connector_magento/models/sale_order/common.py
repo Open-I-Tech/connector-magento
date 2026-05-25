@@ -5,8 +5,6 @@
 import logging
 import xmlrpc.client
 
-import odoo.addons.decimal_precision as dp
-
 from odoo import models, fields, api, _
 from odoo.addons.connector.exception import IDMissingInBackend
 from odoo.addons.connector_magento.compat import job
@@ -34,11 +32,11 @@ class MagentoSaleOrder(models.Model):
     )
     total_amount = fields.Float(
         string='Total amount',
-        digits=dp.get_precision('Account')
+        digits='Account'
     )
     total_amount_tax = fields.Float(
         string='Total amount w. tax',
-        digits=dp.get_precision('Account')
+        digits='Account'
     )
     magento_order_id = fields.Integer(string='Magento Order ID',
                                       help="'order_id' field in Magento")
@@ -165,7 +163,7 @@ class MagentoSaleOrderLine(models.Model):
         required=False,
     )
     tax_rate = fields.Float(string='Tax Rate',
-                            digits=dp.get_precision('Account'))
+                            digits='Account')
     notes = fields.Char()
 
     @api.model
