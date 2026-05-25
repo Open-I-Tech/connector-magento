@@ -69,7 +69,7 @@ class MagentoStoreview(models.Model):
 
             sale_binding_model = self.env['magento.sale.order']
             if user != self.env.user:
-                sale_binding_model = sale_binding_model.sudo(user)
+                sale_binding_model = sale_binding_model.with_user(user)
 
             backend = storeview.with_user(user).backend_id
             from_date = storeview.import_orders_from_date
