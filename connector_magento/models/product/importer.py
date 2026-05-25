@@ -212,7 +212,10 @@ class ProductImportMapper(Component):
     @mapping
     def type(self, record):
         if record['type_id'] == 'simple':
-            return {'type': 'product'}
+            values = {'type': 'consu'}
+            if 'is_storable' in self.env['product.template']._fields:
+                values['is_storable'] = True
+            return values
         elif record['type_id'] in ('virtual', 'downloadable', 'giftcard'):
             return {'type': 'service'}
         return
