@@ -26,10 +26,10 @@ class MagentoBinding(models.AbstractModel):
     # fields.Char because 0 is a valid Magento ID
     external_id = fields.Char(string='ID on Magento')
 
-    _sql_constraints = [
-        ('magento_uniq', 'unique(backend_id, external_id)',
-         'A binding already exists with the same Magento ID.'),
-    ]
+    _magento_uniq = models.Constraint(
+        'unique(backend_id, external_id)',
+        'A binding already exists with the same Magento ID.',
+    )
 
     @job(default_channel='root.magento')
     @api.model

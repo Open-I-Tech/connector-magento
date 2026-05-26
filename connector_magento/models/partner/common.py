@@ -134,10 +134,10 @@ class MagentoAddress(models.Model):
         string='Address from a Magento Order',
     )
 
-    _sql_constraints = [
-        ('odoo_uniq', 'unique(backend_id, odoo_id)',
-         'A partner address can only have one binding by backend.'),
-    ]
+    _odoo_uniq = models.Constraint(
+        'unique(backend_id, odoo_id)',
+        'A partner address can only have one binding by backend.',
+    )
 
 
 class PartnerAdapter(Component):

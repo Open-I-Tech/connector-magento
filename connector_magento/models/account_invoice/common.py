@@ -29,10 +29,10 @@ class MagentoAccountInvoice(models.Model):
                                        string='Magento Sale Order',
                                        ondelete='set null')
 
-    _sql_constraints = [
-        ('odoo_uniq', 'unique(backend_id, odoo_id)',
-         'A Magento binding for this invoice already exists.'),
-    ]
+    _odoo_uniq = models.Constraint(
+        'unique(backend_id, odoo_id)',
+        'A Magento binding for this invoice already exists.',
+    )
 
     @job(default_channel='root.magento')
     @related_action(action='related_action_unwrap_binding')

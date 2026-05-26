@@ -175,10 +175,11 @@ class MagentoBackend(models.Model):
         "When import partner, ignore company_id if this flag is set.",
     )
 
-    _sql_constraints = [
-        ('sale_prefix_uniq', 'unique(sale_prefix)',
-         "A backend with the same sale prefix already exists")
-    ]
+    _sale_prefix_uniq = models.Constraint(
+        'unique(sale_prefix)',
+        "A backend with the same sale prefix already exists",
+    )
+
     def check_magento_structure(self):
         """ Used in each data import.
 
