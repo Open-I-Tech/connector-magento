@@ -21,7 +21,7 @@ class MagentoBindingBackendRead(models.TransientModel):
     _description = 'Magento Generic Object Reader Wizard'
 
     @api.model
-    @tools.ormcache_context('self._uid', 'model_name', keys=('lang',))
+    @tools.ormcache('self._uid', 'model_name', 'self.env.lang')
     def _get_translated_model_name(self, model_name):
         # get the translated model name to build
         # a meaningful model description
@@ -117,7 +117,7 @@ class MagentoBindingBackendRead(models.TransientModel):
             data = adapter.read(self.magento_id)
         with contextlib.closing(io.StringIO()) as buf:
             json.dump(data, buf)
-            out = base64.encodestring(buf.getvalue())
+            out = base64.b64encode(buf.getvalue().encode())
 
         name = 'sale_order_%s.json' % self.magento_id
         self.write({'state': 'get', 'data': out, 'name': name})
