@@ -514,7 +514,10 @@ class SaleOrderImporter(Component):
     def _create(self, data):
         binding = super(SaleOrderImporter, self)._create(data)
         if binding.fiscal_position_id:
-            binding.odoo_id.order_line._compute_tax_id()
+            if hasattr(binding.odoo_id.order_line, '_compute_tax_ids'):
+                binding.odoo_id.order_line._compute_tax_ids()
+            else:
+                binding.odoo_id.order_line._compute_tax_id()
             binding.odoo_id._recompute_taxes()
         return binding
 

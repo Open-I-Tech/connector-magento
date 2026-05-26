@@ -166,12 +166,13 @@ class MagentoSaleOrderLine(models.Model):
                             digits='Account')
     notes = fields.Char()
 
-    @api.model
-    def create(self, vals):
-        magento_order_id = vals['magento_order_id']
-        binding = self.env['magento.sale.order'].browse(magento_order_id)
-        vals['order_id'] = binding.odoo_id.id
-        binding = super(MagentoSaleOrderLine, self).create(vals)
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            magento_order_id = vals['magento_order_id']
+            binding = self.env['magento.sale.order'].browse(magento_order_id)
+            vals['order_id'] = binding.odoo_id.id
+        binding = super(MagentoSaleOrderLine, self).create(vals_list)
         # FIXME triggers function field
         # The amounts (amount_total, ...) computed fields on 'sale.order' are
         # not triggered when magento.sale.order.line are created.
@@ -192,24 +193,27 @@ class SaleOrderLine(models.Model):
         string="Magento Bindings",
     )
 
-    @api.model
-    def create(self, vals):
-        old_line_id = None
+    @api.model_create_multi
+    def create(self, vals_list):
+        old_line_ids = []
         if self.env.context.get('__copy_from_quotation'):
             # when we are copying a sale.order from a canceled one,
             # the id of the copied line is inserted in the vals
             # in `copy_data`.
-            old_line_id = vals.pop('__copy_from_line_id', None)
-        new_line = super(SaleOrderLine, self).create(vals)
-        if old_line_id:
-            # link binding of the canceled order lines to the new order
-            # lines, happens when we are using the 'New Copy of
-            # Quotation' button on a canceled sales order
-            binding_model = self.env['magento.sale.order.line']
-            bindings = binding_model.search([('odoo_id', '=', old_line_id)])
-            if bindings:
-                bindings.write({'odoo_id': new_line.id})
-        return new_line
+            old_line_ids = [
+                vals.pop('__copy_from_line_id', None) for vals in vals_list
+            ]
+        new_lines = super(SaleOrderLine, self).create(vals_list)
+        for old_line_id, new_line in zip(old_line_ids, new_lines):
+            if old_line_id:
+                # link binding of the canceled order lines to the new order
+                # lines, happens when we are using the 'New Copy of
+                # Quotation' button on a canceled sales order
+                binding_model = self.env['magento.sale.order.line']
+                bindings = binding_model.search([('odoo_id', '=', old_line_id)])
+                if bindings:
+                    bindings.write({'odoo_id': new_line.id})
+        return new_lines
     def copy_data(self, default=None):
         data = super(SaleOrderLine, self).copy_data(default=default)[0]
         if self.env.context.get('__copy_from_quotation'):
