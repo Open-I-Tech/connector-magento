@@ -270,10 +270,13 @@ class BaseAddressImportMapper(AbstractComponent):
 
     @mapping
     def state(self, record):
-        if not record.get('region'):
+        region = record.get('region')
+        if isinstance(region, dict):
+            region = region.get('region') or region.get('region_code')
+        if not region:
             return
         state = self.env['res.country.state'].search(
-            [('name', '=ilike', record['region'])],
+            [('name', '=ilike', region)],
             limit=1,
         )
         if state:
@@ -314,6 +317,9 @@ class BaseAddressImportMapper(AbstractComponent):
         """ Prefix is optionally present in Magento 2 """
         prefix = record.get('prefix')
         if not prefix:
+            return
+        if ('res.partner.title' not in self.env.registry.models
+                or 'title' not in self.env['res.partner']._fields):
             return
         title = self.env['res.partner.title'].search(
             [('shortcut', '=ilike', prefix)],
